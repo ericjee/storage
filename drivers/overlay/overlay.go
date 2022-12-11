@@ -350,9 +350,22 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 			logrus.Warnf("Network file system detected as backing store.  Enforcing overlay option `force_mask=\"%o\"`.  Add it to storage.conf to silence this warning", m)
 		}
 
-		if err := os.WriteFile(getMountProgramFlagFile(home), []byte("true"), 0600); err != nil {
-			return nil, err
+		var contents string
+		flagContent, err := os.ReadFile(getMountProgramFlagFile(home))
+		if err == nil {
+			contents = strings.TrimSpace(string(flagContent))
 		}
+		switch contents {
+		case "true":
+			logrus.Debugf("overlay: storage already configured with a mount-program")
+			return nil, err
+		default:
+			if err := os.WriteFile(getMountProgramFlagFile(home), []byte("true"), 0600); err != nil {
+				return nil, err
+			}
+		case "false":
+		}
+
 	} else {
 		if opts.forceMask != nil {
 			return nil, errors.New("'force_mask' is supported only with 'mount_program'")
